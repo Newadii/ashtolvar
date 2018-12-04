@@ -2,18 +2,34 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
+
+char gn, gm;
 
 typedef struct NODE {
     char up;
     char down;
     char left;
     char right;
-    char visited;
-    char cost;
+    char dirs[4];
     char path;
+    int visited;
+    int cost;
 } node;
 
-enum direction {Up, Down, Left, Right};
+void heap_insert(node* dmap, int *cost_heap, int index)
+{
+    int last = cost_heap[0];
+    cost_heap[last] = index;
+
+    while ( dmap[cost_heap[last]].cost < dmap[cost_heap[last/2]].cost && last > 1)
+    {
+           cost_heap[last] = cost_heap[last/2];
+           cost_heap[last/2] = index;
+           last = last/2;
+    }
+    cost_heap[0]++;
+}
 
 char node_cost(char in)
 {
@@ -27,8 +43,44 @@ char node_cost(char in)
     }
 }
 
+int dest(int start, char dir)
+{
+    switch(dir)
+    {
+        case 0:
+            return start - gm;
+        case 1:
+            return start + gm;
+        case 2:
+            return start - 1;
+        case 3:
+            return start + 1;
+    }
+}
+
+
+
+void jixtra(node *dmap, int start, int end)
+{
+    dmap[start].cost = 0;
+    while(dmap[end].visited)
+    {
+        dmap[start].visited = 0;
+        for(int dir=0; dir < 4; dir++)
+        {
+            if(dmap[start].dirs[dir] != -1)
+                if(dmap[dest(start, dir)].visited &&
+                        (dmap[dest(start, dir)].cost == -1 || dmap[start].cost + dmap[start].dirs[dir] < dmap[dest(start, dir)].cost))
+                    dmap[dest(start, dir)].cost = dmap[start].cost + dmap[start].dirs[dir];
+
+        }
+
+    }
+}
+
 int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
 {
+    gn = n, gm = m;
     node *dmap = malloc(n*m * sizeof(node));
     int nm = n*m;
 
@@ -36,10 +88,14 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
     {
         for(int k=0; k<m; k++, index++)
         {
-            dmap[index].up = i>0 ? node_cost(mapa[i-1][k]) : -1;
-            dmap[index].down = i+1<n ? node_cost(mapa[i+1][k]) : -1;
-            dmap[index].left = k>0 ? node_cost(mapa[i][k-1]) : -1;
-            dmap[index].right = k+1<m ? node_cost(mapa[i][k+1]) : -1;
+            dmap[index].dirs[0] = i>0 ? node_cost(mapa[i-1][k]) : -1;
+            dmap[index].dirs[1] = i+1<n ? node_cost(mapa[i+1][k]) : -1;
+            dmap[index].dirs[2] = k>0 ? node_cost(mapa[i][k-1]) : -1;
+            dmap[index].dirs[3] = k+1<m ? node_cost(mapa[i][k+1]) : -1;
+            dmap[index].cost = -1;
+            dmap[index].visited = -1;
+            dmap[index].path = -1;
+
             if(k + 1 == m)
                 printf("%c", mapa[i][k]);
             else
@@ -53,7 +109,6 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
     }
 }
 
-// Vlastna funkcia main() je pre vase osobne testovanie. Dolezite: pri testovacich scenaroch sa nebude spustat!
 int main()
 {
     int x,y;

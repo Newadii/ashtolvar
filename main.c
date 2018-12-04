@@ -3,16 +3,53 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+typedef struct NODE {
+    char up;
+    char down;
+    char left;
+    char right;
+    char visited;
+    char cost;
+    char path;
+} node;
+
+enum direction {Up, Down, Left, Right};
+
+char node_cost(char in)
+{
+    switch(in) {
+        case 'H':
+            return 2;
+        case 'N':
+            return -1;
+        default:
+            return 1;
+    }
+}
+
 int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
 {
-    for(int i=0; i<n; i++)
+    node *dmap = malloc(n*m * sizeof(node));
+    int nm = n*m;
+
+    for(int i=0, index=0; i<n; i++)
     {
-        for(int k=0; k<m; k++)
-            if(k+1 == m)
-                printf("%c",mapa[i][k]);
+        for(int k=0; k<m; k++, index++)
+        {
+            dmap[index].up = i>0 ? node_cost(mapa[i-1][k]) : -1;
+            dmap[index].down = i+1<n ? node_cost(mapa[i+1][k]) : -1;
+            dmap[index].left = k>0 ? node_cost(mapa[i][k-1]) : -1;
+            dmap[index].right = k+1<m ? node_cost(mapa[i][k+1]) : -1;
+            if(k + 1 == m)
+                printf("%c", mapa[i][k]);
             else
-                printf("%c-",mapa[i][k]);
+                printf("%c-", mapa[i][k]);
+        }
         printf("\n");
+    }
+    for(int i=0; i<nm; i++)
+    {
+        printf("%d %d %d %d\n", dmap[i].up, dmap[i].down, dmap[i].left, dmap[i].right);
     }
 }
 

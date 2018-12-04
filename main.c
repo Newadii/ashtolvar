@@ -19,5 +19,22 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
 // Vlastna funkcia main() je pre vase osobne testovanie. Dolezite: pri testovacich scenaroch sa nebude spustat!
 int main()
 {
-    return 0;
-} 
+    int x,y;
+    x = (getchar() - '0') * 10;
+    x += getchar() - '0';
+    y = (getchar() - '0') * 10;
+    y += getchar() - '0';
+    printf("%d, %d\n", x, y);
+    char **mapa = malloc(x * sizeof(int *));
+    for(int i = 0; i < x; ++i)
+        mapa[i] = malloc(y * sizeof(int));
+
+    for(int j = 0; j < x; ++j)
+    {
+        for(int i = 0; i < y; ++i)
+        {
+            mapa[j][i] = (char)getchar();
+        }
+    }
+    zachran_princezne(mapa, x, y, 0, NULL);
+}

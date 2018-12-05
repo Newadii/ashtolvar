@@ -6,20 +6,21 @@
 
 #define MAX_PRINCESS 5
 
-struct TELEPORTS {
+char gn, gm;
+struct NODE_LIST {
     int index;
-    struct TELEPORTS *next;
+    struct NODE_LIST *next;
 } *ports[10];
-
 struct SPECIAL {
     int dragon;
     int princess[MAX_PRINCESS];
     int princess_count;
     int generator;
 } special;
-
-char gn, gm;
-
+typedef struct PATH {
+    int cost;
+    struct NODE_LIST *last;
+} path;
 typedef struct NODE {
     char dirs[4];
     char path;
@@ -27,6 +28,47 @@ typedef struct NODE {
     int cost;
     char port;
 } node;
+
+void add_special(node *dmap, int index, char type)
+{
+    if(type < 'A')
+    {
+        int port_num = type - '0';
+        dmap[index].port = port_num;
+
+        if(ports[port_num] == NULL)
+        {
+            ports[port_num] = malloc(sizeof(struct NODE_LIST));
+            ports[port_num]->index = index;
+            ports[port_num]->next = NULL;
+            return;
+        }
+        struct NODE_LIST *now = ports[port_num];
+        while(now->next != NULL)
+            now = now->next;
+        now->next = malloc(sizeof(struct NODE_LIST));
+        now->next->index = index;
+        now->next->next = NULL;
+        return;
+    }
+    switch(type)
+    {
+        case 'P':
+            if(special.princess_count == MAX_PRINCESS)
+            { printf("ERROR\n"); return; }
+            special.princess[special.princess_count] = index;
+            special.princess_count++;
+            return;
+        case 'D':
+            special.dragon = index;
+            return;
+        case 'G':
+            special.generator = index;
+            return;
+        default:
+            return;
+    }
+}
 
 char node_cost(char in)
 {
@@ -112,12 +154,36 @@ int heap_extract(node *dmap, int *cost_heap)
     return result;
 }
 
-void jixtra(node *dmap, int start, int end)
+path *get_path(node *dmap, int index)
+{
+    path *result = malloc(sizeof(path));
+    result->cost = 0;
+    result->last = malloc(sizeof(struct NODE_LIST));
+    struct NODE_LIST *now = result->last;
+
+    while(1)
+    {
+        result->cost++;
+        now->index = index;
+        index = dmap[index].path;
+        if(index == -1)
+        {
+            now->next = NULL;
+            break;
+        }
+        now->next = malloc(sizeof(struct NODE_LIST));
+        now = now->next;
+    }
+    return result;
+}
+
+path *jixtra(node *dmap, int start, int end)
 {
     int *cost_heap = malloc(gn*gm * sizeof(char));
     cost_heap[0] = 1;
 
-    dmap[start].cost = 0;
+    if(dmap[start].cost == -1)
+        dmap[start].cost = 0;
     while(dmap[end].visited)
     {
         dmap[start].visited = 0;
@@ -140,47 +206,7 @@ void jixtra(node *dmap, int start, int end)
         }
         start = heap_extract(dmap, cost_heap);
     }
-}
-
-void add_special(node *dmap, int index, char type)
-{
-    if(type < 'A')
-    {
-        int port_num = type - '0';
-        dmap[index].port = port_num;
-
-        if(ports[port_num] == NULL)
-        {
-            ports[port_num] = malloc(sizeof(struct TELEPORTS));
-            ports[port_num]->index = index;
-            ports[port_num]->next = NULL;
-            return;
-        }
-        struct TELEPORTS *now = ports[port_num];
-        while(now->next != NULL)
-            now = now->next;
-        now->next = malloc(sizeof(struct TELEPORTS));
-        now->next->index = index;
-        now->next->next = NULL;
-        return;
-    }
-    switch(type)
-    {
-        case 'P':
-            if(special.princess_count == MAX_PRINCESS)
-                { printf("ERROR\n"); return; }
-            special.princess[special.princess_count] = index;
-            special.princess_count++;
-            return;
-        case 'D':
-            special.dragon = index;
-            return;
-        case 'G':
-            special.generator = index;
-            return;
-        default:
-            return;
-    }
+    return get_path(dmap, end);
 }
 
 int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
@@ -219,16 +245,16 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
         }
         printf("\n");
     }
-    for(int i=0; i<nm; i++)
-    {
-        printf("(%d) %d %d %d %d  t:%d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].port, dmap[i].visited, dmap[i].cost, dmap[i].path);
-    }
+//    for(int i=0; i<nm; i++)
+//    {
+//        printf("(%d) %d %d %d %d  t:%d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].port, dmap[i].visited, dmap[i].cost, dmap[i].path);
+//    }
 /*
     printf("\n");
     for(int i=0; i<10; i++)
     {
         printf("%d: ", i);
-        struct TELEPORTS *now = ports[i];
+        struct NODE_LIST *now = ports[i];
         while(now != NULL)
         {
             printf("%d ", now->index);
@@ -237,13 +263,20 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
         printf("\n");
     }
 */
-    return 0;
-    jixtra(dmap, 0, 13);
-    printf("after jixtra: \n\n");
-    for(int i=0; i<index; i++)
+    path *cesta;
+    cesta = jixtra(dmap, 0, 24);
+    printf("\nafter jixtra: \ncena: %d\ncesta: ", cesta->cost);
+    struct NODE_LIST *now = cesta->last;
+    while(now)
     {
-        printf("(%d) \t%d %d %d %d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].visited, dmap[i].cost, dmap[i].path);
+        printf("%d ", now->index);
+        now = now->next;
     }
+    printf("\n\n");
+//    for(int i=0; i<index; i++)
+//    {
+//        printf("(%d) \t%d %d %d %d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].visited, dmap[i].cost, dmap[i].path);
+//    }
     return 0;
 }
 

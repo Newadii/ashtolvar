@@ -162,13 +162,12 @@ int heap_extract(node *dmap, int *cost_heap)
 path *get_path(node *dmap, int index)
 {
     path *result = malloc(sizeof(path));
-    result->cost = 0;
+    result->cost = dmap[index].cost;
     result->last = malloc(sizeof(struct NODE_LIST));
     struct NODE_LIST *now = result->last;
 
     while(1)
     {
-        result->cost++;
         now->index = index;
         index = dmap[index].path;
         if(index == -1)
@@ -184,10 +183,10 @@ path *get_path(node *dmap, int index)
 
 path *jixtra(node *dmap_init, int start, int end, char g_on)
 {
-    node *dmap = malloc(gn*gm * sizeof(node));
+    node *dmap = (node *) malloc(gn*gm * sizeof(node));
     memcpy(dmap, dmap_init, gn*gm * sizeof(node));
 
-    int *cost_heap = malloc(gn*gm * sizeof(char));
+    int *cost_heap = malloc(gn*gm * sizeof(int));
     cost_heap[0] = 1;
 
     if(dmap[start].cost == -1)
@@ -212,6 +211,7 @@ path *jixtra(node *dmap_init, int start, int end, char g_on)
                 }
             }
         }
+        // TELEPORTY
         if(g_on && dmap[start].port != -1)
         {
             struct NODE_LIST *now = ports[dmap[start].port];
@@ -238,7 +238,10 @@ path *jixtra(node *dmap_init, int start, int end, char g_on)
         if(cost_heap[0] == 0)
             return NULL;
     }
-    return get_path(dmap, end);
+    path *result = get_path(dmap, end);
+    free(dmap);
+    free(cost_heap);
+    return result;
 }
 
 struct NODE_LIST *get_root(path *p)
@@ -266,23 +269,24 @@ path *connect_paths(path *a, path *b)
     { a_root->next = b->last->next; result->last = a->last; }
     else
         return NULL;
-    result->cost = a->cost + b->cost - 1;
+    result->cost = a->cost + b->cost;
     return result;
 }
 
-path *fork_paths(node *dmap)
-{
-    path **to_dragon = malloc(2 * sizeof(path *));
-    to_dragon[0] = jixtra(dmap, 0, special.dragon, 0); //0 = teleport off
-    to_dragon[1] = connect_paths(jixtra(dmap, 0, special.generator, 0), jixtra(dmap, 0, special.dragon, 1)); //1 = teleport on
-
-
-}
+//todo main feature
+//path *fork_paths(node *dmap)
+//{
+//    path **to_dragon = malloc(2 * sizeof(path *));
+//    to_dragon[0] = jixtra(dmap, 0, special.dragon, 0); //0 = teleport off
+//    to_dragon[1] = connect_paths(jixtra(dmap, 0, special.generator, 0), jixtra(dmap, 0, special.dragon, 1)); //1 = teleport on
+//
+//
+//}
 
 int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
 {
     gn = n, gm = m;
-    node *dmap = malloc(n*m * sizeof(node));
+    node *dmap = (node *)malloc(n*m * sizeof(node));
     printf("size: %u\n", sizeof(*dmap));
     int nm = n*m, index=0;
 
@@ -334,10 +338,17 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
         printf("\n");
     }
 */
-    path *a, *b, *cesta;
-    a = jixtra(dmap, 0, special.dragon, 0);
-    b = jixtra(dmap, special.dragon, special.princess[0], 0);
+    path *a, *b, *c, *d, *e, *cesta;
+    a = jixtra(dmap, 0, special.dragon, 1);
+    b = jixtra(dmap, special.dragon, special.princess[0], 1);
+    c = jixtra(dmap, special.princess[0], special.princess[1], 1);
+    d = jixtra(dmap, special.princess[1], special.princess[2], 1);
+    e = jixtra(dmap, special.princess[2], special.princess[3], 1);
     cesta = connect_paths(a, b);
+    cesta = connect_paths(cesta, c);
+    cesta = connect_paths(cesta, d);
+    cesta = connect_paths(cesta, e);
+//    cesta = jixtra(dmap, 0, 23, 0);
     if(cesta == NULL)
     {
         printf("nemozna cesta\n");
@@ -350,12 +361,13 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
         printf("%d ", now->index);
         now = now->next;
     }
-    printf("\n\n");
+    printf("\n####\n");
 //    for(int i=0; i<index; i++)
 //    {
 //        printf("(%d) \t%d %d %d %d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].visited, dmap[i].cost, dmap[i].path);
 //    }
-    return 0;
+    free(dmap);
+    return NULL;
 }
 
 int main()
@@ -377,5 +389,5 @@ int main()
             mapa[j][i] = (char)getchar();
         }
     }
-    zachran_princezne(mapa, x, y, 0, NULL);
+    return 0;
 }

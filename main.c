@@ -4,32 +4,29 @@
 #include <stdlib.h>
 #include <limits.h>
 
+#define MAX_PRINCESS 5
+
+struct TELEPORTS {
+    int index;
+    struct TELEPORTS *next;
+} *ports[10];
+
+struct SPECIAL {
+    int dragon;
+    int princess[MAX_PRINCESS];
+    int princess_count;
+    int generator;
+} special;
+
 char gn, gm;
 
 typedef struct NODE {
-    char up;
-    char down;
-    char left;
-    char right;
     char dirs[4];
     char path;
     int visited;
     int cost;
+    char port;
 } node;
-
-void heap_insert(node* dmap, int *cost_heap, int index)
-{
-    int last = cost_heap[0];
-    cost_heap[last] = index;
-
-    while ( dmap[cost_heap[last]].cost < dmap[cost_heap[last/2]].cost && last > 1)
-    {
-           cost_heap[last] = cost_heap[last/2];
-           cost_heap[last/2] = index;
-           last = last/2;
-    }
-    cost_heap[0]++;
-}
 
 char node_cost(char in)
 {
@@ -55,26 +52,134 @@ int dest(int start, char dir)
             return start - 1;
         case 3:
             return start + 1;
+        default:
+            return -1;
     }
 }
 
+void heap_insert(node *dmap, int *cost_heap, int index)
+{
+    int last = cost_heap[0];
+    cost_heap[last] = index;
 
+    while (last > 1 && dmap[cost_heap[last]].cost < dmap[cost_heap[last/2]].cost)
+    {
+           cost_heap[last] = cost_heap[last/2];
+           cost_heap[last/2] = index;
+           last = last/2;
+    }
+    cost_heap[0]++;
+}
+
+void heap_check(node *dmap, int *cost_heap, int index)
+{
+    int last = cost_heap[0] - 1;
+
+    while(last > 1 && cost_heap[last] != index)
+        last--;
+
+    while (last > 1 && dmap[cost_heap[last]].cost < dmap[cost_heap[last/2]].cost)
+    {
+        cost_heap[last] = cost_heap[last/2];
+        cost_heap[last/2] = index;
+        last = last/2;
+    }
+}
+
+int heap_extract(node *dmap, int *cost_heap)
+{
+    int result = cost_heap[1];
+    cost_heap[0]--;
+    cost_heap[1] = cost_heap[ cost_heap[0] ];
+    int index, now = 1;
+
+    while(  ( now*2   < cost_heap[0] && dmap[cost_heap[now]].cost > dmap[ cost_heap[now*2]  ].cost) ||
+            ( now*2+1 < cost_heap[0] && dmap[cost_heap[now]].cost > dmap[ cost_heap[now*2+1]].cost) )
+    {
+        index = cost_heap[now];
+        if(dmap[ cost_heap[now*2] ].cost < dmap[ cost_heap[now*2+1] ].cost)
+        {
+            cost_heap[now] = cost_heap[now*2];
+            cost_heap[now*2] = index;
+            now = now*2;
+        } else
+        {
+            cost_heap[now] = cost_heap[now*2+1];
+            cost_heap[now*2+1] = index;
+            now = now*2+1;
+        }
+    }
+    return result;
+}
 
 void jixtra(node *dmap, int start, int end)
 {
+    int *cost_heap = malloc(gn*gm * sizeof(char));
+    cost_heap[0] = 1;
+
     dmap[start].cost = 0;
     while(dmap[end].visited)
     {
         dmap[start].visited = 0;
         for(int dir=0; dir < 4; dir++)
         {
-            if(dmap[start].dirs[dir] != -1)
-                if(dmap[dest(start, dir)].visited &&
-                        (dmap[dest(start, dir)].cost == -1 || dmap[start].cost + dmap[start].dirs[dir] < dmap[dest(start, dir)].cost))
+            if(dmap[start].dirs[dir] != -1 && dmap[dest(start, dir)].visited)
+            {
+                if(dmap[dest(start, dir)].cost == -1)
+                {
                     dmap[dest(start, dir)].cost = dmap[start].cost + dmap[start].dirs[dir];
-
+                    dmap[dest(start, dir)].path = start;
+                    heap_insert(dmap, cost_heap, dest(start, dir));
+                } else if(dmap[start].cost + dmap[start].dirs[dir] < dmap[dest(start, dir)].cost)
+                {
+                    dmap[dest(start, dir)].cost = dmap[start].cost + dmap[start].dirs[dir];
+                    dmap[dest(start, dir)].path = start;
+                    heap_check(dmap, cost_heap, dest(start, dir));
+                }
+            }
         }
+        start = heap_extract(dmap, cost_heap);
+    }
+}
 
+void add_special(node *dmap, int index, char type)
+{
+    if(type < 'A')
+    {
+        int port_num = type - '0';
+        dmap[index].port = port_num;
+
+        if(ports[port_num] == NULL)
+        {
+            ports[port_num] = malloc(sizeof(struct TELEPORTS));
+            ports[port_num]->index = index;
+            ports[port_num]->next = NULL;
+            return;
+        }
+        struct TELEPORTS *now = ports[port_num];
+        while(now->next != NULL)
+            now = now->next;
+        now->next = malloc(sizeof(struct TELEPORTS));
+        now->next->index = index;
+        now->next->next = NULL;
+        return;
+    }
+    switch(type)
+    {
+        case 'P':
+            if(special.princess_count == MAX_PRINCESS)
+                { printf("ERROR\n"); return; }
+            special.princess[special.princess_count] = index;
+            special.princess_count++;
+            return;
+        case 'D':
+            special.dragon = index;
+            return;
+        case 'G':
+            special.generator = index;
+            return;
+        default:
+            return;
     }
 }
 
@@ -82,31 +187,64 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
 {
     gn = n, gm = m;
     node *dmap = malloc(n*m * sizeof(node));
-    int nm = n*m;
+    int nm = n*m, index=0;
 
-    for(int i=0, index=0; i<n; i++)
+    for(int i=0; i<MAX_PRINCESS; i++)
+        special.princess[i] = -1;
+    special.dragon = -1;
+
+    for(int i=0; i<n; i++)
     {
         for(int k=0; k<m; k++, index++)
         {
+            if(k + 1 == m)
+                printf("%02d:%c", index, mapa[i][k]);
+            else
+                printf("%02d:%c  ", index, mapa[i][k]);
+
+            if(mapa[i][k] == 'N')
+                continue;
+
             dmap[index].dirs[0] = i>0 ? node_cost(mapa[i-1][k]) : -1;
-            dmap[index].dirs[1] = i+1<n ? node_cost(mapa[i+1][k]) : -1;
+            dmap[index].dirs[1] = i+1<gn ? node_cost(mapa[i+1][k]) : -1;
             dmap[index].dirs[2] = k>0 ? node_cost(mapa[i][k-1]) : -1;
-            dmap[index].dirs[3] = k+1<m ? node_cost(mapa[i][k+1]) : -1;
+            dmap[index].dirs[3] = k+1<gm ? node_cost(mapa[i][k+1]) : -1;
+            dmap[index].port = -1;
             dmap[index].cost = -1;
             dmap[index].visited = -1;
             dmap[index].path = -1;
 
-            if(k + 1 == m)
-                printf("%c", mapa[i][k]);
-            else
-                printf("%c-", mapa[i][k]);
+            if(mapa[i][k] != 'H' && mapa[i][k] != 'C')
+                add_special(dmap, index, mapa[i][k]);
         }
         printf("\n");
     }
     for(int i=0; i<nm; i++)
     {
-        printf("%d %d %d %d\n", dmap[i].up, dmap[i].down, dmap[i].left, dmap[i].right);
+        printf("(%d) %d %d %d %d  t:%d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].port, dmap[i].visited, dmap[i].cost, dmap[i].path);
     }
+/*
+    printf("\n");
+    for(int i=0; i<10; i++)
+    {
+        printf("%d: ", i);
+        struct TELEPORTS *now = ports[i];
+        while(now != NULL)
+        {
+            printf("%d ", now->index);
+            now = now->next;
+        }
+        printf("\n");
+    }
+*/
+    return 0;
+    jixtra(dmap, 0, 13);
+    printf("after jixtra: \n\n");
+    for(int i=0; i<index; i++)
+    {
+        printf("(%d) \t%d %d %d %d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].visited, dmap[i].cost, dmap[i].path);
+    }
+    return 0;
 }
 
 int main()

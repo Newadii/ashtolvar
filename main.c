@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
+#include <string.h>
 
 #define MAX_PRINCESS 5
 
@@ -28,6 +28,11 @@ typedef struct NODE {
     int cost;
     char port;
 } node;
+typedef struct PATH_TO_PRINCESS {
+    path **g_off_paths;
+    path **g_on_paths;
+
+};
 
 void add_special(node *dmap, int index, char type)
 {
@@ -177,8 +182,11 @@ path *get_path(node *dmap, int index)
     return result;
 }
 
-path *jixtra(node *dmap, int start, int end, char g_on)
+path *jixtra(node *dmap_init, int start, int end, char g_on)
 {
+    node *dmap = malloc(gn*gm * sizeof(node));
+    memcpy(dmap, dmap_init, gn*gm * sizeof(node));
+
     int *cost_heap = malloc(gn*gm * sizeof(char));
     cost_heap[0] = 1;
 
@@ -233,10 +241,49 @@ path *jixtra(node *dmap, int start, int end, char g_on)
     return get_path(dmap, end);
 }
 
+struct NODE_LIST *get_root(path *p)
+{
+    struct NODE_LIST *now = p->last;
+    while(1)
+    {
+        if(now->next)
+            now = now->next;
+        else
+            return now;
+    }
+}
+
+path *connect_paths(path *a, path *b)
+{
+    path *result = malloc(sizeof(path));
+    struct NODE_LIST *a_root, *b_root;
+    a_root = get_root(a);
+    b_root = get_root(b);
+
+    if(a->last->index == b_root->index)
+    { b_root->next = a->last->next; result->last = b->last; }
+    else if(b->last->index == a_root->index)
+    { a_root->next = b->last->next; result->last = a->last; }
+    else
+        return NULL;
+    result->cost = a->cost + b->cost - 1;
+    return result;
+}
+
+path *fork_paths(node *dmap)
+{
+    path **to_dragon = malloc(2 * sizeof(path *));
+    to_dragon[0] = jixtra(dmap, 0, special.dragon, 0); //0 = teleport off
+    to_dragon[1] = connect_paths(jixtra(dmap, 0, special.generator, 0), jixtra(dmap, 0, special.dragon, 1)); //1 = teleport on
+
+
+}
+
 int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
 {
     gn = n, gm = m;
     node *dmap = malloc(n*m * sizeof(node));
+    printf("size: %u\n", sizeof(*dmap));
     int nm = n*m, index=0;
 
     for(int i=0; i<MAX_PRINCESS; i++)
@@ -287,8 +334,10 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
         printf("\n");
     }
 */
-    path *cesta;
-    cesta = jixtra(dmap, 0, special.princess[3], 1);
+    path *a, *b, *cesta;
+    a = jixtra(dmap, 0, special.dragon, 0);
+    b = jixtra(dmap, special.dragon, special.princess[0], 0);
+    cesta = connect_paths(a, b);
     if(cesta == NULL)
     {
         printf("nemozna cesta\n");

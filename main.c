@@ -177,7 +177,7 @@ path *get_path(node *dmap, int index)
     return result;
 }
 
-path *jixtra(node *dmap, int start, int end)
+path *jixtra(node *dmap, int start, int end, char g_on)
 {
     int *cost_heap = malloc(gn*gm * sizeof(char));
     cost_heap[0] = 1;
@@ -204,7 +204,31 @@ path *jixtra(node *dmap, int start, int end)
                 }
             }
         }
+        if(g_on && dmap[start].port != -1)
+        {
+            struct NODE_LIST *now = ports[dmap[start].port];
+            while(now)
+            {
+                if(dmap[now->index].visited)
+                {
+                    if(dmap[now->index].cost == -1)
+                    {
+                        dmap[now->index].cost = dmap[start].cost;
+                        dmap[now->index].path = start;
+                        heap_insert(dmap, cost_heap, now->index);
+                    } else if(dmap[start].cost < dmap[now->index].cost)
+                    {
+                        dmap[now->index].cost = dmap[start].cost;
+                        dmap[now->index].path = start;
+                        heap_check(dmap, cost_heap, now->index);
+                    }
+                }
+                now = now->next;
+            }
+        }
         start = heap_extract(dmap, cost_heap);
+        if(cost_heap[0] == 0)
+            return NULL;
     }
     return get_path(dmap, end);
 }
@@ -264,7 +288,12 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
     }
 */
     path *cesta;
-    cesta = jixtra(dmap, 0, 24);
+    cesta = jixtra(dmap, 0, special.princess[3], 1);
+    if(cesta == NULL)
+    {
+        printf("nemozna cesta\n");
+        return NULL;
+    }
     printf("\nafter jixtra: \ncena: %d\ncesta: ", cesta->cost);
     struct NODE_LIST *now = cesta->last;
     while(now)

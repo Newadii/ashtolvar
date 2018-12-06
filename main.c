@@ -32,7 +32,7 @@ typedef struct PATH_TO_PRINCESS {
     path **g_off_paths;
     path **g_on_paths;
 
-};
+} ptc;
 
 void add_special(node *dmap, int index, char type)
 {
@@ -283,22 +283,20 @@ path *connect_paths(path *a, path *b)
 //
 //}
 
-int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
+node *dmap_init(char **mapa)
 {
-    gn = n, gm = m;
-    node *dmap = (node *)malloc(n*m * sizeof(node));
-    printf("size: %u\n", sizeof(*dmap));
-    int nm = n*m, index=0;
+    node *dmap = (node *)malloc(gn*gm * sizeof(node));
+    int index=0;
 
     for(int i=0; i<MAX_PRINCESS; i++)
         special.princess[i] = -1;
     special.dragon = -1;
 
-    for(int i=0; i<n; i++)
+    for(int i=0; i<gn; i++)
     {
-        for(int k=0; k<m; k++, index++)
+        for(int k=0; k<gm; k++, index++)
         {
-            if(k + 1 == m)
+            if(k + 1 == gm)
                 printf("%02d:%c", index, mapa[i][k]);
             else
                 printf("%02d:%c  ", index, mapa[i][k]);
@@ -320,10 +318,19 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
         }
         printf("\n");
     }
-//    for(int i=0; i<nm; i++)
-//    {
-//        printf("(%d) %d %d %d %d  t:%d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].port, dmap[i].visited, dmap[i].cost, dmap[i].path);
-//    }
+    return dmap;
+}
+
+void debug_me(node *dmap)
+{
+    // init dmap:
+/*
+    for(int i=0; i<nm; i++)
+    {
+        printf("(%d) %d %d %d %d  t:%d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].port, dmap[i].visited, dmap[i].cost, dmap[i].path);
+    }
+*/
+    // teleport lists check
 /*
     printf("\n");
     for(int i=0; i<10; i++)
@@ -338,6 +345,7 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
         printf("\n");
     }
 */
+
     path *a, *b, *c, *d, *e, *cesta;
     a = jixtra(dmap, 0, special.dragon, 1);
     b = jixtra(dmap, special.dragon, special.princess[0], 1);
@@ -348,11 +356,11 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
     cesta = connect_paths(cesta, c);
     cesta = connect_paths(cesta, d);
     cesta = connect_paths(cesta, e);
-//    cesta = jixtra(dmap, 0, 23, 0);
+
     if(cesta == NULL)
     {
         printf("nemozna cesta\n");
-        return NULL;
+        return;
     }
     printf("\nafter jixtra: \ncena: %d\ncesta: ", cesta->cost);
     struct NODE_LIST *now = cesta->last;
@@ -361,11 +369,22 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
         printf("%d ", now->index);
         now = now->next;
     }
-    printf("\n####\n");
-//    for(int i=0; i<index; i++)
-//    {
-//        printf("(%d) \t%d %d %d %d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].visited, dmap[i].cost, dmap[i].path);
-//    }
+    // dmap after jixtra .. no more functional, jixtra's making copy of dmap
+/*
+    for(int i=0; i<index; i++)
+    {
+        printf("(%d) \t%d %d %d %d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].visited, dmap[i].cost, dmap[i].path);
+    }
+*/
+}
+
+int *zachran_princezne(char **mapa, int n, int m, int t, int *dlzka_cesty)
+{
+    gn = n, gm = m;
+    node *dmap = dmap_init(mapa);
+
+    debug_me(dmap);
+
     free(dmap);
     return NULL;
 }
@@ -389,5 +408,9 @@ int main()
             mapa[j][i] = (char)getchar();
         }
     }
+    zachran_princezne(mapa, x, y, 0, NULL);
     return 0;
 }
+/*
+0707HGHPCDCC0CCHPPHHHHHCHHHHHHHC0CCCHCH0CHCH1CCPCCCHH
+*/

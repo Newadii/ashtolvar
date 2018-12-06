@@ -105,6 +105,7 @@ node *dmap_init(char **mapa)
     for(int i=0; i<MAX_PRINCESS; i++)
         special.princess[i] = -1;
     special.dragon = -1;
+    special.generator = -1;
 
     for(int i=0; i<gn; i++)
     {
@@ -306,27 +307,72 @@ struct NODE_LIST *get_root(path *p)
     }
 }
 
-//todo make new path instead of connecting 2
+struct NODE_LIST *copy_node_list(struct NODE_LIST *to_be_copied)
+{
+    if(to_be_copied == NULL)
+        return NULL;
+    struct NODE_LIST *result = malloc(sizeof(struct NODE_LIST));
+    struct NODE_LIST *now = result;
+
+    while(1)
+    {
+        now->index = to_be_copied->index;
+        if(to_be_copied->next == NULL)
+        {
+            now->next = NULL;
+            break;
+        }
+        now->next = malloc(sizeof(struct NODE_LIST));
+        now = now->next;
+        to_be_copied = to_be_copied->next;
+    }
+    free(now->next);
+    now->next = NULL;
+    return result;
+}
+
 path *connect_paths(path *a, path *b)
 {
+    if(a == NULL)
+        return b;
+    if(b == NULL)
+        return a;
     path *result = malloc(sizeof(path));
     struct NODE_LIST *a_root, *b_root;
     a_root = get_root(a);
     b_root = get_root(b);
 
+    result->cost = a->cost + b->cost;
     if(a->last->index == b_root->index)
-    { b_root->next = a->last->next; result->last = b->last; }
+    {
+        b_root->next = a->last->next;
+        result->last = copy_node_list(b->last);
+        b_root->next = NULL;
+    }
     else if(b->last->index == a_root->index)
-    { a_root->next = b->last->next; result->last = a->last; }
+    {
+        a_root->next = b->last->next;
+        result->last = copy_node_list(a->last);
+        a_root->next = NULL;
+    }
     else
         return NULL;
-    result->cost = a->cost + b->cost;
+
     return result;
 }
 
 void dealloc_path(path *to_be_free)
 {
-    ;
+    if(to_be_free == NULL)
+        return;
+    struct NODE_LIST *next, *now = to_be_free->last;
+    while(now)
+    {
+        next = now->next;
+        free(now);
+        now = next;
+    }
+    free(to_be_free);
 }
 
 void create_paths(node *dmap)
@@ -334,31 +380,33 @@ void create_paths(node *dmap)
     // from start - GEN OFF
     start_points.start.generator = jixtra(dmap, 0, special.generator, GEN_OFF);
     start_points.start.dragon = jixtra(dmap, 0, special.dragon, GEN_OFF);
-    // from dragon - GEN OFF
+    // from dragon - GEN OFF/ON
     start_points.dragon.generator = jixtra(dmap, special.dragon, special.generator, GEN_OFF);
     start_points.dragon.princess = malloc(special.princess_count * sizeof(path *));
+    start_points.dragon.gen_on_princess = malloc(special.princess_count * sizeof(path *));
     for(int i=0; i < special.princess_count; i++)
+    {
         start_points.dragon.princess[i] = jixtra(dmap, special.dragon, special.princess[i], GEN_OFF);
-    // from princess - GEN OFF
+        start_points.dragon.gen_on_princess[i] = jixtra(dmap, special.dragon, special.princess[i], GEN_ON);
+    }
+    // from princess - GEN OFF/ON
+    start_points.princess = malloc(special.princess_count * sizeof(struct GENERATED_PATHS));
     for(int i=0; i < special.princess_count; i++)
     {
         start_points.princess[i].generator = jixtra(dmap, special.princess[i], special.generator, GEN_OFF);
         start_points.princess[i].princess = malloc(special.princess_count * sizeof(path *));
+        start_points.princess[i].gen_on_princess = malloc(special.princess_count * sizeof(path *));
         for(int k=0; k < special.princess_count; k++)
+        {
             start_points.princess[i].princess[k] = jixtra(dmap, special.princess[i], special.princess[k], GEN_OFF);
+            start_points.princess[i].gen_on_princess[k] = jixtra(dmap, special.princess[i], special.princess[k], GEN_ON);
+        }
     }
     // from generator - GEN ON
     start_points.generator.gen_on_dragon = jixtra(dmap, special.generator, special.dragon, GEN_ON);
     start_points.generator.gen_on_princess = malloc(special.princess_count * sizeof(path *));
     for(int i=0; i < special.princess_count; i++)
         start_points.generator.gen_on_princess[i] = jixtra(dmap, special.generator, special.princess[i], GEN_ON);
-    // from princess - GEN ON
-    for(int i=0; i < special.princess_count; i++)
-    {
-        start_points.princess[i].gen_on_princess = malloc(special.princess_count * sizeof(path *));
-        for(int k=0; k < special.princess_count; k++)
-            start_points.princess[i].gen_on_princess[k] = jixtra(dmap, special.princess[i], special.princess[k], GEN_ON);
-    }
 }
 
 path *rescue_plan(struct SPECIAL to_be_done)
@@ -370,12 +418,12 @@ path *rescue_plan(struct SPECIAL to_be_done)
         {
             to_be_done.dragon = 0;
             this = start_points.start.dragon;
-            path *gen_off = connect_paths(this, rescue_plan(to_be_done));
+            path *gen_off = this == NULL ? NULL : connect_paths(this, rescue_plan(to_be_done));
 
             to_be_done.dragon = 1;
             to_be_done.generator = 0;
             this = start_points.start.generator;
-            path *gen_on = connect_paths(this, rescue_plan(to_be_done));
+            path *gen_on = this == NULL ? NULL : connect_paths(this, rescue_plan(to_be_done));
 
             if(gen_off == NULL)
                 return gen_on;
@@ -397,11 +445,11 @@ path *rescue_plan(struct SPECIAL to_be_done)
             to_be_done.dragon = 0;
             this = start_points.generator.gen_on_dragon;
 
-            return connect_paths(this, rescue_plan(to_be_done));
+            return this == NULL ? NULL : connect_paths(this, rescue_plan(to_be_done));
         }
     }
-    int princess_quantity = 0;
-    for(int i=0; i < MAX_PRINCESS; i++)
+    int princess_quantity = 0, all_princess = special.princess_count;
+    for(int i=0; i < all_princess; i++)
         if(to_be_done.princess[i] == 1)
             princess_quantity++;
 
@@ -416,8 +464,8 @@ path *rescue_plan(struct SPECIAL to_be_done)
 
     if(to_be_done.generator)
     {
-        path **to_compare = malloc((MAX_PRINCESS + 1) * sizeof(path *));
-        for(int i=0; i < MAX_PRINCESS; i++)
+        path **to_compare = malloc((all_princess + 1) * sizeof(path *));
+        for(int i=0; i < all_princess; i++)
         {
             if(to_be_done.princess[i] == 0)
             {
@@ -429,26 +477,26 @@ path *rescue_plan(struct SPECIAL to_be_done)
 
             this_request.princess[i] = 0;
             this_request.princess_count = i;
-            to_compare[i] = connect_paths(this, rescue_plan(this_request));
+            to_compare[i] = this == NULL ? NULL : connect_paths(this, rescue_plan(this_request));
         }
         this = princess_poiner->generator;
         to_be_done.generator = 0;
-        to_compare[MAX_PRINCESS] = connect_paths(this, rescue_plan(to_be_done));
+        to_compare[all_princess] = this == NULL ? NULL : connect_paths(this, rescue_plan(to_be_done));
 
-        this = to_compare[MAX_PRINCESS];
-        for(int i=0; i < MAX_PRINCESS; i++)
-            if(to_compare[i] != NULL && to_compare[i]->cost > this->cost)
+        this = to_compare[all_princess];
+        for(int i=0; i < all_princess; i++)
+            if(this == NULL || (to_compare[i] != NULL && to_compare[i]->cost < this->cost))
                 this = to_compare[i];
 
-        for(int i=0; i < MAX_PRINCESS + 1; i++)
+        for(int i=0; i < all_princess + 1; i++)
             if(to_compare[i] != this)
                 dealloc_path(to_compare[i]);
         free(to_compare);
         return this;
     } else
     {
-        path **to_compare = malloc((MAX_PRINCESS) * sizeof(path *));
-        for(int i=0; i < MAX_PRINCESS; i++)
+        path **to_compare = malloc((all_princess) * sizeof(path *));
+        for(int i=0; i < all_princess; i++)
         {
             if(to_be_done.princess[i] == 0)
             {
@@ -460,14 +508,14 @@ path *rescue_plan(struct SPECIAL to_be_done)
 
             this_request.princess[i] = 0;
             this_request.princess_count = i;
-            to_compare[i] = connect_paths(this, rescue_plan(this_request));
+            to_compare[i] = this == NULL ? NULL : connect_paths(this, rescue_plan(this_request));
         }
         this = to_compare[0];
-        for(int i=1; i < MAX_PRINCESS; i++)
-            if(this == NULL || (to_compare[i] != NULL && to_compare[i]->cost > this->cost))
+        for(int i=1; i < all_princess; i++)
+            if(this == NULL || (to_compare[i] != NULL && to_compare[i]->cost < this->cost))
                 this = to_compare[i];
 
-        for(int i=0; i < MAX_PRINCESS; i++)
+        for(int i=0; i < all_princess; i++)
             if(to_compare[i] != this)
                 dealloc_path(to_compare[i]);
         free(to_compare);
@@ -500,24 +548,33 @@ void debug_me(node *dmap)
     }
 */
 
-    path *a, *b, *c, *d, *e, *cesta;
-    a = jixtra(dmap, 0, special.dragon, 1);
-    b = jixtra(dmap, special.dragon, special.princess[0], 1);
-    c = jixtra(dmap, special.princess[0], special.princess[1], 1);
-    d = jixtra(dmap, special.princess[1], special.princess[2], 1);
-    e = jixtra(dmap, special.princess[2], special.princess[3], 1);
-    cesta = connect_paths(a, b);
-    cesta = connect_paths(cesta, c);
-    cesta = connect_paths(cesta, d);
-    cesta = connect_paths(cesta, e);
+    path *result;
+    result = connect_paths(start_points.start.generator, start_points.generator.gen_on_dragon);
+    result = connect_paths(result, start_points.dragon.gen_on_princess[1]);
+    result = connect_paths(result, start_points.princess[1].gen_on_princess[2]);
+    result = connect_paths(result, start_points.princess[2].gen_on_princess[0]);
+    result = connect_paths(result, start_points.princess[0].gen_on_princess[3]);
 
-    if(cesta == NULL)
+
+
+//    path *a, *b, *c, *d, *e, *cesta;
+//    a = jixtra(dmap, 0, special.dragon, 1);
+//    b = jixtra(dmap, special.dragon, special.princess[0], 1);
+//    c = jixtra(dmap, special.princess[0], special.princess[1], 1);
+//    d = jixtra(dmap, special.princess[1], special.princess[2], 1);
+//    e = jixtra(dmap, special.princess[2], special.princess[3], 1);
+//    cesta = connect_paths(a, b);
+//    cesta = connect_paths(cesta, c);
+//    cesta = connect_paths(cesta, d);
+//    cesta = connect_paths(cesta, e);
+
+    if(result == NULL)
     {
         printf("nemozna cesta\n");
         return;
     }
-    printf("\nafter jixtra: \ncena: %d\ncesta: ", cesta->cost);
-    struct NODE_LIST *now = cesta->last;
+    printf("\nafter jixtra: \ncena: %d\ncesta: ", result->cost);
+    struct NODE_LIST *now = result->last;
     while(now)
     {
         printf("%d ", now->index);
@@ -537,7 +594,27 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *path_length)
     gn = n, gm = m;
     node *dmap = dmap_init(mapa);
 
-    debug_me(dmap);
+    struct SPECIAL to_be_done;
+    to_be_done.generator = 1;
+    to_be_done.dragon = 1;
+    to_be_done.princess_count = -1;
+    for(int i=0; i<special.princess_count; i++)
+        to_be_done.princess[i] = 1;
+
+    create_paths(dmap);
+    path *result = rescue_plan(to_be_done);
+
+    if(result)
+    {
+        printf("\nafter jixtra: \ncena: %d\ncesta: ", result->cost);
+        struct NODE_LIST *now = result->last;
+        while(now)
+        {
+            printf("%d ", now->index);
+            now = now->next;
+        }
+    }
+//    debug_me(dmap);
 
     free(dmap);
     return NULL;

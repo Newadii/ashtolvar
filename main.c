@@ -1,4 +1,4 @@
-// zadanie3.c -- Tomáš Gloznek, 22.11.2018 17:34
+// zadanie3.c -- Tomáš Gloznek, 22.11.2018 04:20
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -85,6 +85,44 @@ char node_cost(char in)
         default:
             return 1;
     }
+}
+
+node *dmap_init(char **mapa)
+{
+    node *dmap = (node *)malloc(gn*gm * sizeof(node));
+    int index=0;
+
+    for(int i=0; i<MAX_PRINCESS; i++)
+        special.princess[i] = -1;
+    special.dragon = -1;
+
+    for(int i=0; i<gn; i++)
+    {
+        for(int k=0; k<gm; k++, index++)
+        {
+            if(k + 1 == gm)
+                printf("%02d:%c", index, mapa[i][k]);
+            else
+                printf("%02d:%c  ", index, mapa[i][k]);
+
+            if(mapa[i][k] == 'N')
+                continue;
+
+            dmap[index].dirs[0] = i>0 ? node_cost(mapa[i-1][k]) : -1;
+            dmap[index].dirs[1] = i+1<gn ? node_cost(mapa[i+1][k]) : -1;
+            dmap[index].dirs[2] = k>0 ? node_cost(mapa[i][k-1]) : -1;
+            dmap[index].dirs[3] = k+1<gm ? node_cost(mapa[i][k+1]) : -1;
+            dmap[index].port = -1;
+            dmap[index].cost = -1;
+            dmap[index].visited = -1;
+            dmap[index].path = -1;
+
+            if(mapa[i][k] != 'H' && mapa[i][k] != 'C')
+                add_special(dmap, index, mapa[i][k]);
+        }
+        printf("\n");
+    }
+    return dmap;
 }
 
 int dest(int start, char dir)
@@ -183,6 +221,8 @@ path *get_path(node *dmap, int index)
 
 path *jixtra(node *dmap_init, int start, int end, char g_on)
 {
+    if(dmap_init == NULL || start < 0 || end < 0)
+        return NULL;
     node *dmap = (node *) malloc(gn*gm * sizeof(node));
     memcpy(dmap, dmap_init, gn*gm * sizeof(node));
 
@@ -282,44 +322,6 @@ path *connect_paths(path *a, path *b)
 //
 //
 //}
-
-node *dmap_init(char **mapa)
-{
-    node *dmap = (node *)malloc(gn*gm * sizeof(node));
-    int index=0;
-
-    for(int i=0; i<MAX_PRINCESS; i++)
-        special.princess[i] = -1;
-    special.dragon = -1;
-
-    for(int i=0; i<gn; i++)
-    {
-        for(int k=0; k<gm; k++, index++)
-        {
-            if(k + 1 == gm)
-                printf("%02d:%c", index, mapa[i][k]);
-            else
-                printf("%02d:%c  ", index, mapa[i][k]);
-
-            if(mapa[i][k] == 'N')
-                continue;
-
-            dmap[index].dirs[0] = i>0 ? node_cost(mapa[i-1][k]) : -1;
-            dmap[index].dirs[1] = i+1<gn ? node_cost(mapa[i+1][k]) : -1;
-            dmap[index].dirs[2] = k>0 ? node_cost(mapa[i][k-1]) : -1;
-            dmap[index].dirs[3] = k+1<gm ? node_cost(mapa[i][k+1]) : -1;
-            dmap[index].port = -1;
-            dmap[index].cost = -1;
-            dmap[index].visited = -1;
-            dmap[index].path = -1;
-
-            if(mapa[i][k] != 'H' && mapa[i][k] != 'C')
-                add_special(dmap, index, mapa[i][k]);
-        }
-        printf("\n");
-    }
-    return dmap;
-}
 
 void debug_me(node *dmap)
 {

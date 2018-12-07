@@ -25,7 +25,7 @@ typedef struct PATH {
 } path;
 typedef struct NODE {
     char dirs[4];
-    char path;
+    int path;
     int visited;
     int cost;
     char port;
@@ -111,10 +111,10 @@ node *dmap_init(char **mapa)
     {
         for(int k=0; k<gm; k++, index++)
         {
-            if(k + 1 == gm)
-                printf("%02d:%c", index, mapa[i][k]);
-            else
-                printf("%02d:%c  ", index, mapa[i][k]);
+//            if(k + 1 == gm)
+//                printf("%c", mapa[i][k]);
+//            else
+//                printf("%c   ", mapa[i][k]);
 
             if(mapa[i][k] == 'N')
                 continue;
@@ -131,8 +131,21 @@ node *dmap_init(char **mapa)
             if(mapa[i][k] != 'H' && mapa[i][k] != 'C')
                 add_special(dmap, index, mapa[i][k]);
         }
-        printf("\n");
+//        printf("\n");
     }
+//    printf("\n");
+//    index = 0;
+//    for(int i=0; i<gn; i++)
+//    {
+//        for(int k = 0; k < gm; k++, index++)
+//        {
+//            if(k + 1 == gm)
+//                printf("%03d", index);
+//            else
+//                printf("%03d ", index);
+//        }
+//        printf("\n");
+//    }
     return dmap;
 }
 
@@ -606,13 +619,26 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *path_length)
 
     if(result)
     {
-        printf("\nafter jixtra: \ncena: %d\ncesta: ", result->cost);
+//        printf("\nafter jixtra: \ncena: %d\ncesta: ", result->cost);
+        if(path_length)
+            *path_length = 0;
+        else
+            return NULL;
         struct NODE_LIST *now = result->last;
         while(now)
         {
-            printf("%d ", now->index);
+//            printf("%d ", now->index);
             now = now->next;
+            (*path_length)++;
         }
+        int *final = malloc(*path_length * 2 * sizeof(int));
+        now = result->last;
+        for(int i=(*path_length*2)-1; i>=0; i--, now = now->next)
+        {
+            final[i] = now->index/m;
+            final[--i] = now->index%m;
+        }
+        return final;
     }
 //    debug_me(dmap);
 
@@ -622,7 +648,7 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *path_length)
 
 int main()
 {
-    int x,y;
+    int x,y, *path_length = malloc(sizeof(int));
     x = (getchar() - '0') * 10;
     x += getchar() - '0';
     y = (getchar() - '0') * 10;
@@ -639,9 +665,15 @@ int main()
             mapa[j][i] = (char)getchar();
         }
     }
-    zachran_princezne(mapa, x, y, 0, NULL);
+    int *final = zachran_princezne(mapa, x, y, 0, path_length);
+    printf("\n\n");
+    for(int i=0; i<*path_length; i++)
+        printf("%d,%d  ", final[(i*2)+1], final[i*2]);
+    printf("\n");
     return 0;
 }
 /*
 0707HGHPCDCC0CCHPPHHHHHCHHHHHHHC0CCCHCH0CHCH1CCPCCCHH
+0530CCHHHHCCHHHCHCCCHHHCHHHHCHPCHCHHPCHCHCHCCHCHCHHCCHHHCCCHCCHHHHCHCCCCHHHHHCCHCCCHHCCCHHHCCHHHHCHCCCHHCCCHDCCCHCHCHCHCCHCCCHHCCCHCHCCHCHCPHCHCHHCCHCCHHC
+3030CCCCHHHCCHCCHHCCCCCCCCPCHHCCCCHCCCGH0CCCHCHCHCHCHCCCHHHHCCCHCHCHCHHCCCHCCHHCCHCHCCCCCCHCCCHHHHCCCCHHCHCCCHHCCCCHCCHCCHHCCCHCCCCHCHCCHHHCCHCCCCCCCCCHCHCCHCCCCHCHHCCCCHCHCHHCCCCCCCHCCCCHCHCHCCHCCHCCCCHCCHHHHHHPHCCCCCCC1HCHCHCCHCCHCHCCCCHHHCCCCHHCHHHHCHHHCCHHC1HHHHHCHHCHHHCHHCCCCCCCHCHHCHCCPCHCCHCHHCHHCHCCCHCCCCHCHHCHCCC0CCCCCCCCHCCCCCHCCHHCCCCCCHHHCCCHCCHCCCHCCHCHCHHCHHHCCHCHHCHHHCCHCHCHCCCCHCCCCHCCCCCCHCCCCHHHCCCHCCHHCCCHHHCCHHCCCCCCHCCHHHHCCH0CCHHHCHHHCCDHHHHCHCCHHCCCC0CHHHCCHHHCCCCCCHCHHHCCC1CCCCCCCCCCHCCCHCHCCCCCHCCCHHCHHCHCCCHHCCCHCCCHHHHCCCCCCHCHCHCCHCCCCCHCCCCHHCHCCCCCHCHCCHHCCHCCCCCCHCHCCCCHHHHCCHCCHCHCHCCHHCCCHHCHHCHHHHCHCCHCHCCHCCCHCCHCHHCCHCCCHHCCCHCHCHHCHCCCCCCCCCCHCCCHCCCCCCCCHHHHHHHCHCCCCHCCCCCCCHHCCCHCHHCCCCCPHHCHCCHCHCCCCHHCHCCCHHHHCCCCCCCCCHCHHCCHCCCHHCHHHHCHCCHHHHCHHHCHHCHCHCHHCHHHHCCCHHCCCCCHHHCCHHCCCHHHCHCCCCCCCHHCCCC0HCHCCHCCHHCCCCCCCHPHCCCCHHCCCHCHCCCCCHCCCHCCHCCCHCCC
 */

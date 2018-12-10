@@ -8,6 +8,7 @@
 #define GEN_OFF 0
 #define GEN_ON 1
 
+int ct;
 char gn, gm;
 struct NODE_LIST {
     int index;
@@ -42,7 +43,7 @@ struct START_POINTS {
     struct GENERATED_PATHS generator;
     struct GENERATED_PATHS dragon;
     struct GENERATED_PATHS *princess;
-} start_points;
+} *start_points;
 
 void add_special(node *dmap, int index, char type)
 {
@@ -111,11 +112,6 @@ node *dmap_init(char **mapa)
     {
         for(int k=0; k<gm; k++, index++)
         {
-//            if(k + 1 == gm)
-//                printf("%c", mapa[i][k]);
-//            else
-//                printf("%c   ", mapa[i][k]);
-
             if(mapa[i][k] == 'N')
                 continue;
 
@@ -133,19 +129,6 @@ node *dmap_init(char **mapa)
         }
 //        printf("\n");
     }
-//    printf("\n");
-//    index = 0;
-//    for(int i=0; i<gn; i++)
-//    {
-//        for(int k = 0; k < gm; k++, index++)
-//        {
-//            if(k + 1 == gm)
-//                printf("%03d", index);
-//            else
-//                printf("%03d ", index);
-//        }
-//        printf("\n");
-//    }
     return dmap;
 }
 
@@ -242,7 +225,7 @@ path *get_path(node *dmap, int index)
     }
     return result;
 }
-
+//// JIXTRA
 path *jixtra(node *dmap_init, int start, int end, char g_on)
 {
     if(dmap_init == NULL || start < 0 || end < 0)
@@ -346,11 +329,19 @@ struct NODE_LIST *copy_node_list(struct NODE_LIST *to_be_copied)
 
 path *connect_paths(path *a, path *b)
 {
-    if(a == NULL)
-        return b;
-    if(b == NULL)
-        return a;
     path *result = malloc(sizeof(path));
+    if(a == NULL)
+    {
+        result->last = copy_node_list(b->last);
+        result->cost = b->cost;
+        return result;
+    }
+    if(b == NULL)
+    {
+        result->last = copy_node_list(a->last);
+        result->cost = a->cost;
+        return result;
+    }
     struct NODE_LIST *a_root, *b_root;
     a_root = get_root(a);
     b_root = get_root(b);
@@ -387,56 +378,61 @@ void dealloc_path(path *to_be_free)
     }
     free(to_be_free);
 }
-
+//// PATH CREATING
 void create_paths(node *dmap)
 {
+    start_points = malloc(sizeof(struct START_POINTS));
     // from start - GEN OFF
-    start_points.start.generator = jixtra(dmap, 0, special.generator, GEN_OFF);
-    start_points.start.dragon = jixtra(dmap, 0, special.dragon, GEN_OFF);
+    start_points->start.generator = jixtra(dmap, 0, special.generator, GEN_OFF);
+    start_points->start.dragon = jixtra(dmap, 0, special.dragon, GEN_OFF);
     // from dragon - GEN OFF/ON
-    start_points.dragon.generator = jixtra(dmap, special.dragon, special.generator, GEN_OFF);
-    start_points.dragon.princess = malloc(special.princess_count * sizeof(path *));
-    start_points.dragon.gen_on_princess = malloc(special.princess_count * sizeof(path *));
+    start_points->dragon.generator = jixtra(dmap, special.dragon, special.generator, GEN_OFF);
+    start_points->dragon.princess = malloc(special.princess_count * sizeof(path *));
+    start_points->dragon.gen_on_princess = malloc(special.princess_count * sizeof(path *));
     for(int i=0; i < special.princess_count; i++)
     {
-        start_points.dragon.princess[i] = jixtra(dmap, special.dragon, special.princess[i], GEN_OFF);
-        start_points.dragon.gen_on_princess[i] = jixtra(dmap, special.dragon, special.princess[i], GEN_ON);
+        start_points->dragon.princess[i] = jixtra(dmap, special.dragon, special.princess[i], GEN_OFF);
+        start_points->dragon.gen_on_princess[i] = jixtra(dmap, special.dragon, special.princess[i], GEN_ON);
     }
     // from princess - GEN OFF/ON
-    start_points.princess = malloc(special.princess_count * sizeof(struct GENERATED_PATHS));
+    start_points->princess = malloc(special.princess_count * sizeof(struct GENERATED_PATHS));
     for(int i=0; i < special.princess_count; i++)
     {
-        start_points.princess[i].generator = jixtra(dmap, special.princess[i], special.generator, GEN_OFF);
-        start_points.princess[i].princess = malloc(special.princess_count * sizeof(path *));
-        start_points.princess[i].gen_on_princess = malloc(special.princess_count * sizeof(path *));
+        start_points->princess[i].generator = jixtra(dmap, special.princess[i], special.generator, GEN_OFF);
+        start_points->princess[i].princess = malloc(special.princess_count * sizeof(path *));
+        start_points->princess[i].gen_on_princess = malloc(special.princess_count * sizeof(path *));
         for(int k=0; k < special.princess_count; k++)
         {
-            start_points.princess[i].princess[k] = jixtra(dmap, special.princess[i], special.princess[k], GEN_OFF);
-            start_points.princess[i].gen_on_princess[k] = jixtra(dmap, special.princess[i], special.princess[k], GEN_ON);
+            start_points->princess[i].princess[k] = jixtra(dmap, special.princess[i], special.princess[k], GEN_OFF);
+            start_points->princess[i].gen_on_princess[k] = jixtra(dmap, special.princess[i], special.princess[k], GEN_ON);
         }
     }
     // from generator - GEN ON
-    start_points.generator.gen_on_dragon = jixtra(dmap, special.generator, special.dragon, GEN_ON);
-    start_points.generator.gen_on_princess = malloc(special.princess_count * sizeof(path *));
+    start_points->generator.gen_on_dragon = jixtra(dmap, special.generator, special.dragon, GEN_ON);
+    start_points->generator.gen_on_princess = malloc(special.princess_count * sizeof(path *));
     for(int i=0; i < special.princess_count; i++)
-        start_points.generator.gen_on_princess[i] = jixtra(dmap, special.generator, special.princess[i], GEN_ON);
+        start_points->generator.gen_on_princess[i] = jixtra(dmap, special.generator, special.princess[i], GEN_ON);
 }
-
+//// MAIN PATH FINDER
 path *rescue_plan(struct SPECIAL to_be_done)
 {
-    path *this;
+    path *this, *from_rescue;
     if(to_be_done.dragon)
     {
         if(to_be_done.generator)
         {
             to_be_done.dragon = 0;
-            this = start_points.start.dragon;
-            path *gen_off = this == NULL ? NULL : connect_paths(this, rescue_plan(to_be_done));
+            this = start_points->start.dragon;
+            from_rescue = rescue_plan(to_be_done);
+            path *gen_off = this == NULL ? NULL : connect_paths(this, from_rescue);
+            dealloc_path(from_rescue);
 
             to_be_done.dragon = 1;
             to_be_done.generator = 0;
-            this = start_points.start.generator;
-            path *gen_on = this == NULL ? NULL : connect_paths(this, rescue_plan(to_be_done));
+            this = start_points->start.generator;
+            from_rescue = rescue_plan(to_be_done);
+            path *gen_on = this == NULL ? NULL : connect_paths(this, from_rescue);
+            dealloc_path(from_rescue);
 
             if(gen_off == NULL)
                 return gen_on;
@@ -456,9 +452,11 @@ path *rescue_plan(struct SPECIAL to_be_done)
         else
         {
             to_be_done.dragon = 0;
-            this = start_points.generator.gen_on_dragon;
-
-            return this == NULL ? NULL : connect_paths(this, rescue_plan(to_be_done));
+            this = start_points->generator.gen_on_dragon;
+            from_rescue = rescue_plan(to_be_done);
+            this = this == NULL ? NULL : connect_paths(this, from_rescue);
+            dealloc_path(from_rescue);
+            return this;
         }
     }
     int princess_quantity = 0, all_princess = special.princess_count;
@@ -469,11 +467,13 @@ path *rescue_plan(struct SPECIAL to_be_done)
     if(princess_quantity == 0)
         return NULL;
 
-    struct GENERATED_PATHS *princess_poiner;
+    struct GENERATED_PATHS *princess_pointer;
     if(to_be_done.princess_count == -1)
-        princess_poiner = &start_points.dragon;
+        princess_pointer = &start_points->dragon;
+    else if(to_be_done.princess_count == -2)
+        princess_pointer = &start_points->generator;
     else
-        princess_poiner = &start_points.princess[to_be_done.princess_count];
+        princess_pointer = &start_points->princess[to_be_done.princess_count];
 
     if(to_be_done.generator)
     {
@@ -486,15 +486,21 @@ path *rescue_plan(struct SPECIAL to_be_done)
                 continue;
             }
             struct SPECIAL this_request = to_be_done;
-            this = princess_poiner->princess[i];
-
             this_request.princess[i] = 0;
             this_request.princess_count = i;
-            to_compare[i] = this == NULL ? NULL : connect_paths(this, rescue_plan(this_request));
+
+            this = princess_pointer->princess[i];
+            from_rescue = rescue_plan(this_request);
+            to_compare[i] = this == NULL ? NULL : connect_paths(this, from_rescue);
+            dealloc_path(from_rescue);
         }
-        this = princess_poiner->generator;
         to_be_done.generator = 0;
-        to_compare[all_princess] = this == NULL ? NULL : connect_paths(this, rescue_plan(to_be_done));
+        to_be_done.princess_count = -2;
+
+        this = princess_pointer->generator;
+        from_rescue = rescue_plan(to_be_done);
+        to_compare[all_princess] = this == NULL ? NULL : connect_paths(this, from_rescue);
+        dealloc_path(from_rescue);
 
         this = to_compare[all_princess];
         for(int i=0; i < all_princess; i++)
@@ -517,11 +523,13 @@ path *rescue_plan(struct SPECIAL to_be_done)
                 continue;
             }
             struct SPECIAL this_request = to_be_done;
-            this = princess_poiner->gen_on_princess[i];
-
             this_request.princess[i] = 0;
             this_request.princess_count = i;
-            to_compare[i] = this == NULL ? NULL : connect_paths(this, rescue_plan(this_request));
+
+            this = princess_pointer->gen_on_princess[i];
+            from_rescue = rescue_plan(this_request);
+            to_compare[i] = this == NULL ? NULL : connect_paths(this, from_rescue);
+            dealloc_path(from_rescue);
         }
         this = to_compare[0];
         for(int i=1; i < all_princess; i++)
@@ -534,72 +542,6 @@ path *rescue_plan(struct SPECIAL to_be_done)
         free(to_compare);
         return this;
     }
-}
-
-void debug_me(node *dmap)
-{
-    // init dmap:
-/*
-    for(int i=0; i<nm; i++)
-    {
-        printf("(%d) %d %d %d %d  t:%d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].port, dmap[i].visited, dmap[i].cost, dmap[i].path);
-    }
-*/
-    // teleport lists check
-/*
-    printf("\n");
-    for(int i=0; i<10; i++)
-    {
-        printf("%d: ", i);
-        struct NODE_LIST *now = ports[i];
-        while(now != NULL)
-        {
-            printf("%d ", now->index);
-            now = now->next;
-        }
-        printf("\n");
-    }
-*/
-
-    path *result;
-    result = connect_paths(start_points.start.generator, start_points.generator.gen_on_dragon);
-    result = connect_paths(result, start_points.dragon.gen_on_princess[1]);
-    result = connect_paths(result, start_points.princess[1].gen_on_princess[2]);
-    result = connect_paths(result, start_points.princess[2].gen_on_princess[0]);
-    result = connect_paths(result, start_points.princess[0].gen_on_princess[3]);
-
-
-
-//    path *a, *b, *c, *d, *e, *cesta;
-//    a = jixtra(dmap, 0, special.dragon, 1);
-//    b = jixtra(dmap, special.dragon, special.princess[0], 1);
-//    c = jixtra(dmap, special.princess[0], special.princess[1], 1);
-//    d = jixtra(dmap, special.princess[1], special.princess[2], 1);
-//    e = jixtra(dmap, special.princess[2], special.princess[3], 1);
-//    cesta = connect_paths(a, b);
-//    cesta = connect_paths(cesta, c);
-//    cesta = connect_paths(cesta, d);
-//    cesta = connect_paths(cesta, e);
-
-    if(result == NULL)
-    {
-        printf("nemozna cesta\n");
-        return;
-    }
-    printf("\nafter jixtra: \ncena: %d\ncesta: ", result->cost);
-    struct NODE_LIST *now = result->last;
-    while(now)
-    {
-        printf("%d ", now->index);
-        now = now->next;
-    }
-    // dmap after jixtra .. no more functional, jixtra's making copy of dmap
-/*
-    for(int i=0; i<index; i++)
-    {
-        printf("(%d) \t%d %d %d %d \t v:%d c:%d p:%d\n", i, dmap[i].dirs[0], dmap[i].dirs[1], dmap[i].dirs[2], dmap[i].dirs[3], dmap[i].visited, dmap[i].cost, dmap[i].path);
-    }
-*/
 }
 
 int *zachran_princezne(char **mapa, int n, int m, int t, int *path_length)
@@ -640,7 +582,6 @@ int *zachran_princezne(char **mapa, int n, int m, int t, int *path_length)
         }
         return final;
     }
-//    debug_me(dmap);
 
     free(dmap);
     return NULL;
@@ -676,4 +617,5 @@ int main()
 0707HGHPCDCC0CCHPPHHHHHCHHHHHHHC0CCCHCH0CHCH1CCPCCCHH
 0530CCHHHHCCHHHCHCCCHHHCHHHHCHPCHCHHPCHCHCHCCHCHCHHCCHHHCCCHCCHHHHCHCCCCHHHHHCCHCCCHHCCCHHHCCHHHHCHCCCHHCCCHDCCCHCHCHCHCCHCCCHHCCCHCHCCHCHCPHCHCHHCCHCCHHC
 3030CCCCHHHCCHCCHHCCCCCCCCPCHHCCCCHCCCGH0CCCHCHCHCHCHCCCHHHHCCCHCHCHCHHCCCHCCHHCCHCHCCCCCCHCCCHHHHCCCCHHCHCCCHHCCCCHCCHCCHHCCCHCCCCHCHCCHHHCCHCCCCCCCCCHCHCCHCCCCHCHHCCCCHCHCHHCCCCCCCHCCCCHCHCHCCHCCHCCCCHCCHHHHHHPHCCCCCCC1HCHCHCCHCCHCHCCCCHHHCCCCHHCHHHHCHHHCCHHC1HHHHHCHHCHHHCHHCCCCCCCHCHHCHCCPCHCCHCHHCHHCHCCCHCCCCHCHHCHCCC0CCCCCCCCHCCCCCHCCHHCCCCCCHHHCCCHCCHCCCHCCHCHCHHCHHHCCHCHHCHHHCCHCHCHCCCCHCCCCHCCCCCCHCCCCHHHCCCHCCHHCCCHHHCCHHCCCCCCHCCHHHHCCH0CCHHHCHHHCCDHHHHCHCCHHCCCC0CHHHCCHHHCCCCCCHCHHHCCC1CCCCCCCCCCHCCCHCHCCCCCHCCCHHCHHCHCCCHHCCCHCCCHHHHCCCCCCHCHCHCCHCCCCCHCCCCHHCHCCCCCHCHCCHHCCHCCCCCCHCHCCCCHHHHCCHCCHCHCHCCHHCCCHHCHHCHHHHCHCCHCHCCHCCCHCCHCHHCCHCCCHHCCCHCHCHHCHCCCCCCCCCCHCCCHCCCCCCCCHHHHHHHCHCCCCHCCCCCCCHHCCCHCHHCCCCCPHHCHCCHCHCCCCHHCHCCCHHHHCCCCCCCCCHCHHCCHCCCHHCHHHHCHCCHHHHCHHHCHHCHCHCHHCHHHHCCCHHCCCCCHHHCCHHCCCHHHCHCCCCCCCHHCCCC0HCHCCHCCHHCCCCCCCHPHCCCCHHCCCHCHCCCCCHCCCHCCHCCCHCCC
+8020HCCCHCCHHHHHHHCCHCCCCCCCHCHHCHHCHHCHCCHCCCCHCHHHCHCCCHHHCHHHHHCHCC0HCHCHCCHHHCCHHHHHHHCCHHCHCCHHCHHCCHCCCHHHHHHCHHHCCCCDCCCCHCCCCHHHCHCCCCHCHCHCHHHHHCHCHCCCCCHCHCHHHHCHHCCHHHCCCCHHCCCHHCHHHHHCCCCCCCHCHHHCCHHHHHCHHHHCHHCCCHHCCHCCHHHCHHCCCHCCCCHCHCCC0HCCCCHHHCCCHHHHHCHCCHCHHHHHHCCHHCCCHCCHHCHCCCHHHCHHHCCCCHCHCCHCCHHCHCHHCCHCHHCCHCCCHHCCHHCCCCHCCCCCCHHCHCHCCCHCHCHHCCHHHHCHHCHHHHHCCCHCHHCCCHCHCCHHHCHCCCCCHHHHCCCCCPCCHCCCHCHHHCCHHHCCHCCHHHCHCCHHHHCHCCHHCCHCCCCCCHCHCCHHHHCCCCHHCHHCHCHHCGCCHCCHCHCH11HCHHHCHCHCHCHHHCCHCCHCCHHCHCCHCHCHHCHC1CHCHCCHH1CHHHHCHHHCHCCHCCCHHHCCHHHHCHHCCCHHCHCHCCHHHCHCCHCCCHCCHHCCHHCHHCHCC1HHHHHHHHHHCCCHHCHHCCCCCHCCHCHHCCHCCHHHCHHHCCCCHHHHHCHCHCCHCCHCCCCCHCHHCCCCCHCCCHHCHHHCHCHHCCCCCCHCHHCHCC0CHHHCHHCHCCCHHHHHCHHHCCCHCCCCHHHHCHHHCCHHCHCHHHHHCHCCCHHCHHCCHCCCCHHCHCCHCCCCCHHCHHCCHCHCCCHHHHCHCHCHCCHCHCHCHHCCCHHCCHCCHHCHCCCCHHHHHPHHHHHHHHCCHCHCHCCHCCCHCCHCCHCHHCCCHCCCCCCHHHCHHHCHHHHHCH1HHCHCCCHCHCHHCHCHPCCCHHHCCHCHCCHCCHHCHHCHCCCHHCHCHCCHCHCHCHCHHHCCCHHCH0CCH0H10HCHHHCHHCHCHHCHCHHHHHHCCHHHHHHCHHCCCCHHCHHHHHHCCHH0CCHCHCHHCCCHHCHH0HCHHCHHCHHCCCCHCCCHHCHHCHHCCCHHHHCHCCCCHHCHHHCHHHC1CCCHHCHCCCHHCCCCHHCCCHHCHHCCCHHHHCCCCHCHCHHCHCHHCHCCHCCCCHCCCCCCCHHHHCCHHHHCHHHHCHCHHCCCCCHHCCHHCHHHHHCCHHHHCHCCCHPCHCHHCHHCHCCCCHCHCHCHCHCHHHHHCHCHHCHHCHHHHCH0HHHHHHHHHCCCCCCHCCCHCHHCHHHCHHHCCCCCHCCCHCCHC10CCHCHHHCHHHHCHCHHCHCHCCHHCCHCHCHHCHHHHHCCCCHCCCHHHCCCHHCCCHHHCHHHHHHHCCHCHHCCHHCHHHHHHHCCCHCHHCHCHHCCCHHHCCHHCHCHCCHCCHCHCHHHHCHCHCHCHCCCHHHHCHCCHCHCHCCHHHCHCCHHHCCHHHHHCCHHCHHCCCHHHHHCHHCCHCPHCHCHHCHHHCHCHCHHHHHHHHCHCCCCHCHHHHCCCCHHHCHCCHCHCHHHHCCCCCHHCCCHCCCHHHHCCHHCHCHCHCHCCHCHCCHH
 */
